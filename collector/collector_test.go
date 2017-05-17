@@ -516,3 +516,48 @@ func TestCreateMetricNamespace(t *testing.T) {
 	})
 
 }
+
+func TestHasAnyPrefix(t *testing.T) {
+	Convey("Filter label with specified prefix string", t, func() {
+		type args struct {
+			s          string
+			prefixList []string
+		}
+		tests := []struct {
+			name string
+			args args
+			want bool
+		}{
+			// TODO: Add test cases.
+			struct {
+				name string
+				args args
+				want bool
+			}{
+				args: args{
+					s: "annotation.io.kubernetes.container.ports",
+					prefixList: []string{
+						"license",
+						"maintainer",
+						"vendor",
+						"version",
+						"build-date",
+						"works.weave.role",
+						"org.label-schema",
+						"annotation.",
+					},
+				},
+				name: "full list",
+				want: true,
+			},
+		}
+
+		for _, tt := range tests {
+			Convey(fmt.Sprintf("Given %s want %v", tt.name, tt.want),
+				func() {
+					got := HasAnyPrefix(tt.args.s, tt.args.prefixList)
+					So(got, ShouldEqual, tt.want)
+				})
+		}
+	})
+}

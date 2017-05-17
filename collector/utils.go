@@ -161,7 +161,8 @@ func getDockerConfig(cfg plugin.Config) (map[string]string, error) {
 	return config, nil
 }
 
-func hasAnyPrefix(s string, prefixList []string) bool {
+// HasAnyPrefix HasPrefix
+func HasAnyPrefix(s string, prefixList []string) bool {
 	has := false
 	for _, prefix := range prefixList {
 		if strings.HasPrefix(s, prefix) {
