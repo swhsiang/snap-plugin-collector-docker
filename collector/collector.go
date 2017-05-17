@@ -104,8 +104,18 @@ func (c *collector) CollectMetrics(mts []plugin.Metric) ([]plugin.Metric, error)
 	// setup docker client based on config only once
 	if c.client == nil {
 		c.conf, err = getDockerConfig(mts[0].Config)
-		if val, ok := mts[0].Config["ignoreLabels"]; ok {
-			c.ignoreLabels = val.([]string)
+		if val, ok := c.conf["labelsToBeIgnored"]; ok {
+			c.ignoreLabels = strings.Split(val, ",")
+			// Avoid [""] this case happen. If the case happened,
+			// it would cause the problem with HasAnyPrefix function.
+			if c.ignoreLabels[0] == "" {
+				c.ignoreLabels = []string{}
+			}
+
+			log.WithFields(log.Fields{
+				"block":    "CollectMetrics",
+				"function": "ignoreLabels",
+			}).Info(val)
 		}
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -750,6 +760,11 @@ func (c *collector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 		"procfs",
 		false,
 		plugin.SetDefaultString("/proc"))
+
+	policy.AddNewStringRule(configKey,
+		"labelsToBeIgnored",
+		false,
+		plugin.SetDefaultString(""))
 
 	return *policy, nil
 }

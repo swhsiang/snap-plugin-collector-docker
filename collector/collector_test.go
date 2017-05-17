@@ -550,6 +550,20 @@ func TestHasAnyPrefix(t *testing.T) {
 				name: "full list",
 				want: true,
 			},
+			struct {
+				name string
+				args args
+				want bool
+			}{
+				args: args{
+					s: "license",
+					prefixList: []string{
+						"license",
+					},
+				},
+				name: "license",
+				want: true,
+			},
 		}
 
 		for _, tt := range tests {

@@ -150,7 +150,7 @@ func appendIfMissing(collectGroup map[string]map[string]struct{}, rid string, qu
 
 func getDockerConfig(cfg plugin.Config) (map[string]string, error) {
 	config := make(map[string]string)
-	values := []string{"endpoint", "procfs"}
+	values := []string{"endpoint", "procfs", "labelsToBeIgnored"}
 	var err error
 	for _, v := range values {
 		config[v], err = cfg.GetString(v)
