@@ -104,6 +104,9 @@ func (c *collector) CollectMetrics(mts []plugin.Metric) ([]plugin.Metric, error)
 	// setup docker client based on config only once
 	if c.client == nil {
 		c.conf, err = getDockerConfig(mts[0].Config)
+		if val, ok := mts[0].Config["ignoreLabels"]; ok {
+			c.ignoreLabels = val.([]string)
+		}
 		if err != nil {
 			log.WithFields(log.Fields{
 				"block":    "CollectMetrics",
@@ -668,26 +671,28 @@ func (c *collector) CollectMetrics(mts []plugin.Metric) ([]plugin.Metric, error)
 		return nil, fmt.Errorf("No metrics found")
 	}
 
-	// add labels as tags to metrics
-	for i := range metrics {
-		rid := metrics[i].Namespace[2].Value
-		// adding labels - only for docker's container, skip the host
-		if rid != "root" {
-			if len(metrics[i].Tags) == 0 {
-				metrics[i].Tags = c.containers[rid].Specification.Labels
-				for lkey, lval := range metrics[i].Tags {
-					if strings.HasPrefix(lkey, "annotation.kubernetes.io") || strings.HasPrefix(lkey, "annotation.scheduler.alpha.kubernetes.io") {
-						delete(metrics[i].Tags, lkey)
+	if len(c.ignoreLabels) > 0 {
+		// add labels as tags to metrics
+		for i := range metrics {
+			rid := metrics[i].Namespace[2].Value
+			// adding labels - only for docker's container, skip the host
+			if rid != "root" {
+				if len(metrics[i].Tags) == 0 {
+					metrics[i].Tags = c.containers[rid].Specification.Labels
+					for lkey, _ := range metrics[i].Tags {
+						if HasAnyPrefix(lkey, c.ignoreLabels) {
+							delete(metrics[i].Tags, lkey)
+						}
 					}
-				}
-			} else {
-				// adding labels one by one to existing tags
-				for lkey, lval := range c.containers[rid].Specification.Labels {
-					// Currently kubernetes adds labels to docker containers with annotations
-					// that contains JSON text. This causes influx problems as it's not able to parse the value.
-					// For now, just disable all annotation namespace labels.
-					if !strings.HasPrefix(lkey, "annotation.kubernetes.io") && !strings.HasPrefix(lkey, "annotation.scheduler.alpha.kubernetes.io") {
-						metrics[i].Tags[lkey] = lval
+				} else {
+					// adding labels one by one to existing tags
+					for lkey, lval := range c.containers[rid].Specification.Labels {
+						// Currently kubernetes adds labels to docker containers with annotations
+						// that contains JSON text. This causes influx problems as it's not able to parse the value.
+						// For now, just disable all annotation namespace labels.
+						if !HasAnyPrefix(lkey, c.ignoreLabels) {
+							metrics[i].Tags[lkey] = lval
+						}
 					}
 				}
 			}
@@ -750,13 +755,14 @@ func (c *collector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 }
 
 type collector struct {
-	containers map[string]*container.ContainerData // holds data for a container under its short id
-	client     container.DockerClientInterface     // client for communication with docker (basic info, stats, mount points)
-	cgroupfs   string                              // CgroupDriver from docker engine
-	driver     string                              // Driver from docker engine
-	rootDir    string                              // Storage mount point for docker containers
-	mounts     map[string]string                   // cache for cgroup mountpoints
-	conf       map[string]string                   // plugin configuration passed with metrics
+	containers   map[string]*container.ContainerData // holds data for a container under its short id
+	client       container.DockerClientInterface     // client for communication with docker (basic info, stats, mount points)
+	cgroupfs     string                              // CgroupDriver from docker engine
+	driver       string                              // Driver from docker engine
+	rootDir      string                              // Storage mount point for docker containers
+	mounts       map[string]string                   // cache for cgroup mountpoints
+	conf         map[string]string                   // plugin configuration passed with metrics
+	ignoreLabels []string                            // ignore certain labels
 }
 
 // getRidGroup returns quested metrics grouped by docker ids
